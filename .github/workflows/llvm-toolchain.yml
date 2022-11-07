@@ -16,6 +16,6 @@ jobs:
       - run: uname -a
       - run: pwd
       - run: mkdir llvm-project
-      # - run: curl --location https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.version }}/llvm-project-${{ inputs.version }}.src.tar.xz -o /home/llvm-project.tar.xz
-      # - run: tar -xf /home/llvm-project.tar.xz -C /home/llvm-project --strip-components 1
-      # - run: ls /home/llvm-project
+      - run: curl --location https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.version }}/llvm-project-${{ inputs.version }}.src.tar.xz -o llvm-project.tar.xz
+      - run: tar -xf llvm-project.tar.xz -C llvm-project --strip-components 1
+      - run: ls llvm-project
