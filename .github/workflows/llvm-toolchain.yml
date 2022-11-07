@@ -18,4 +18,6 @@ jobs:
       - run: mkdir llvm-project
       - run: curl --location https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.version }}/llvm-project-${{ inputs.version }}.src.tar.xz -o llvm-project.tar.xz
       - run: tar -xf llvm-project.tar.xz -C llvm-project --strip-components 1
-      - run: ls llvm-project
+      - run: perl -pi -e 's/#if __LDBL_MANT_DIG__ == 113 && defined\(__SIZEOF_INT128__\)/#if (__LDBL_MANT_DIG__ == 113 || defined(__x86_64__)) && defined(__SIZEOF_INT128__)/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
+      - run: perl -pi -e 's/typedef long double fp_t;/#if defined(__FLOAT128__) || defined(__SIZEOF_FLOAT128__)\ntypedef __float128 fp_t;\n#else\ntypedef long double fp_t;\n#endif/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
+      - run: cat llvm-project/compiler-rt/lib/builtins/fp_lib.h
