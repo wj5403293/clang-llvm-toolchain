@@ -11,6 +11,8 @@ on:
 jobs:
   build-clang-llvm-toolchain:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Attempt GitHub Release
         run: gh release create "${{ inputs.version }} - $(date +'%b %d, %Y')"
