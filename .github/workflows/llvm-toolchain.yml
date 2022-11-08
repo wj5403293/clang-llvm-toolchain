@@ -19,7 +19,7 @@ jobs:
 
       - name: Attempt GitHub Release
         run: |
-          TAG=$(echo "${{ inputs.version }}_$(date +'%b%d,%Y')")
+          TAG=$(echo "${{ inputs.version }}_$(date +'%b-%d-%Y')-$(date -d "1970-01-01 UTC $(date +%T)" +%s)s")
           gh release create "${TAG}"
       # - name: Install build dependencies
       #   run: sudo apt-get update && sudo apt-get install -y curl build-essential python3 python3-distutils cmake ninja-build
