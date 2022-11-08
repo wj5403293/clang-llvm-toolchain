@@ -18,7 +18,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Attempt GitHub Release
-        run: gh release create "${{ inputs.version }} - $(date +'%b %d, %Y')"
+        run: |
+          echo "${{ inputs.version }} - $(date +'%b %d, %Y')"
+          gh release create "${{ inputs.version }} - $(date +'%b %d, %Y')"
       # - name: Install build dependencies
       #   run: sudo apt-get update && sudo apt-get install -y curl build-essential python3 python3-distutils cmake ninja-build
 
