@@ -15,9 +15,10 @@ jobs:
       # - run: sudo apt-get update && sudo apt-get install -y curl build-essential python3 python3-distutils cmake ninja-build
       - run: uname -a
       - run: pwd
-      - run: mkdir llvm-project
+      - run: mkdir llvm-project stage1 stage2 build-stage1 build-stage2
       - run: curl --location https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.version }}/llvm-project-${{ inputs.version }}.src.tar.xz -o llvm-project.tar.xz
       - run: tar -xf llvm-project.tar.xz -C llvm-project --strip-components 1
       - run: perl -pi -e 's/#if __LDBL_MANT_DIG__ == 113 && defined\(__SIZEOF_INT128__\)/#if (__LDBL_MANT_DIG__ == 113 || defined(__x86_64__)) && defined(__SIZEOF_INT128__)/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
       - run: perl -pi -e 's/typedef long double fp_t;/#if defined(__FLOAT128__) || defined(__SIZEOF_FLOAT128__)\ntypedef __float128 fp_t;\n#else\ntypedef long double fp_t;\n#endif/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
-      - run: cat llvm-project/compiler-rt/lib/builtins/fp_lib.h
+      - run: cmake -S llvm-project/llvm -B build-stage1 -G Ninja -DCMAKE_INSTALL_PREFIX=stage1 -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;libunwind;libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DCLANG_DEFAULT_UNWINDLIB=libunwind -DCLANG_DEFAULT_RTLIB=compiler-rt -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DLIBUNWIND_USE_COMPILER_RT=Yes -DLIBCXX_USE_COMPILER_RT=YES -DLIBCXXABI_USE_COMPILER_RT=YES -DLIBCXXABI_USE_LLVM_UNWINDER=YES -DLLVM_ENABLE_LIBCXX=ON -DCOMPILER_RT_CXX_LIBRARY=libcxx -DBUILTINS_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DRUNTIMES_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DLIBCXX_HAS_ATOMIC_LIB=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
+      - run: ninja -C build-stage1
