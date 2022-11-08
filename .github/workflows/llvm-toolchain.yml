@@ -17,38 +17,41 @@ jobs:
       - name: Check out repo's default branch
         uses: actions/checkout@v3
 
-      - name: Attempt GitHub Release
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl build-essential python3 python3-distutils cmake ninja-build
+
+      - name: Create directories for building/installing
+        run: mkdir llvm-project stage1 x86_64-linux-llvm-toolchain build-stage1 build-stage2
+
+      - name: Download llvm-project release tarball
+        run: curl --location https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.version }}/llvm-project-${{ inputs.version }}.src.tar.xz -o llvm-project.tar.xz
+
+      - name: Extract llvm-project
+        run: tar -xf llvm-project.tar.xz -C llvm-project --strip-components 1
+
+      - name: Patch compiler-rt to support float128 builtins for x86_64
+        run: |
+          perl -pi -e 's/#if __LDBL_MANT_DIG__ == 113 && defined\(__SIZEOF_INT128__\)/#if (__LDBL_MANT_DIG__ == 113 || defined(__x86_64__)) && defined(__SIZEOF_INT128__)/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
+          perl -pi -e 's/typedef long double fp_t;/#if defined(__FLOAT128__) || defined(__SIZEOF_FLOAT128__)\ntypedef __float128 fp_t;\n#else\ntypedef long double fp_t;\n#endif/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
+
+      - name: Configure stage 1 with CMake
+        run: cmake -S llvm-project/llvm -B build-stage1 -G Ninja -DCMAKE_INSTALL_PREFIX=stage1 -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_ENABLE_RUNTIMES="compiler-rt;libunwind;libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DCLANG_DEFAULT_UNWINDLIB=libunwind -DCLANG_DEFAULT_RTLIB=compiler-rt -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DLIBUNWIND_USE_COMPILER_RT=Yes -DLIBCXX_USE_COMPILER_RT=YES -DLIBCXXABI_USE_COMPILER_RT=YES -DLIBCXXABI_USE_LLVM_UNWINDER=YES -DLLVM_ENABLE_LIBCXX=ON -DCOMPILER_RT_CXX_LIBRARY=libcxx -DBUILTINS_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DRUNTIMES_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DLIBCXX_HAS_ATOMIC_LIB=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
+
+      - name: Build stage 1 with Ninja
+        run: ninja -C build-stage1 install
+
+      - name: Configure stage 2 with CMake
+        run: cmake -S llvm-project/llvm -B build-stage2 -G Ninja -DCMAKE_INSTALL_PREFIX=x86_64-linux-llvm-toolchain -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$(pwd)/stage1/bin/clang" -DCMAKE_CXX_COMPILER="$(pwd)/stage1/bin/clang++" -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;libunwind;libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DCLANG_DEFAULT_UNWINDLIB=libunwind -DCLANG_DEFAULT_RTLIB=compiler-rt -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DLIBUNWIND_USE_COMPILER_RT=Yes -DLIBCXX_USE_COMPILER_RT=YES -DLIBCXXABI_USE_COMPILER_RT=YES -DLIBCXXABI_USE_LLVM_UNWINDER=YES -DLLVM_ENABLE_LIBCXX=ON -DCOMPILER_RT_CXX_LIBRARY=libcxx -DBUILTINS_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DRUNTIMES_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DLIBCXX_HAS_ATOMIC_LIB=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
+
+      - name: Build stage 2 with Ninja
+        run: |
+          export LD_LIBRARY_PATH="$(pwd)/stage1/lib"
+          ninja -C build-stage2 install
+
+      - name: Compress stage 2 toolchain
+        run: tar -czf x86_64-linux-llvm-toolchain.tar.gz x86_64-linux-llvm-toolchain
+
+      - name: Create GitHub release
         run: |
           TAG=$(echo "${{ inputs.version }}_$(date +'%b-%d-%Y')-$(date -d "1970-01-01 UTC $(date +%T)" +%s)s")
-          gh release create "${TAG}"
-      # - name: Install build dependencies
-      #   run: sudo apt-get update && sudo apt-get install -y curl build-essential python3 python3-distutils cmake ninja-build
-
-      # - name: Create directories for building/installing
-      #   run: mkdir llvm-project stage1 stage2 build-stage1 build-stage2
-
-      # - name: Download llvm-project release tarball
-      #   run: curl --location https://github.com/llvm/llvm-project/releases/download/llvmorg-${{ inputs.version }}/llvm-project-${{ inputs.version }}.src.tar.xz -o llvm-project.tar.xz
-
-      # - name: Extract llvm-project
-      #   run: tar -xf llvm-project.tar.xz -C llvm-project --strip-components 1
-
-      # - name: Patch compiler-rt to support float128 builtins for x86_64
-      #   run: |
-      #     perl -pi -e 's/#if __LDBL_MANT_DIG__ == 113 && defined\(__SIZEOF_INT128__\)/#if (__LDBL_MANT_DIG__ == 113 || defined(__x86_64__)) && defined(__SIZEOF_INT128__)/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
-      #     perl -pi -e 's/typedef long double fp_t;/#if defined(__FLOAT128__) || defined(__SIZEOF_FLOAT128__)\ntypedef __float128 fp_t;\n#else\ntypedef long double fp_t;\n#endif/g' llvm-project/compiler-rt/lib/builtins/fp_lib.h
-
-      # - name: Configure stage 1 with CMake
-      #   run: cmake -S llvm-project/llvm -B build-stage1 -G Ninja -DCMAKE_INSTALL_PREFIX=stage1 -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_ENABLE_RUNTIMES="compiler-rt;libunwind;libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DCLANG_DEFAULT_UNWINDLIB=libunwind -DCLANG_DEFAULT_RTLIB=compiler-rt -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DLIBUNWIND_USE_COMPILER_RT=Yes -DLIBCXX_USE_COMPILER_RT=YES -DLIBCXXABI_USE_COMPILER_RT=YES -DLIBCXXABI_USE_LLVM_UNWINDER=YES -DLLVM_ENABLE_LIBCXX=ON -DCOMPILER_RT_CXX_LIBRARY=libcxx -DBUILTINS_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DRUNTIMES_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DLIBCXX_HAS_ATOMIC_LIB=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
-
-      # - name: Build stage 1 with Ninja
-      #   run: ninja -C build-stage1 install
-
-      # - name: Set LD_LIBRARY_PATH for stage 1 to find libc++ for building stage 2
-      #   run: export LD_LIBRARY_PATH="$(pwd)/stage1/lib"
-
-      # - name: Configure stage 2 with CMake
-      #   run: cmake -S llvm-project/llvm -B build-stage2 -G Ninja -DCMAKE_INSTALL_PREFIX=stage2 -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$(pwd)/stage1/bin/clang" -DCMAKE_CXX_COMPILER="$(pwd)/stage1/bin/clang++" -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;libunwind;libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DCLANG_DEFAULT_UNWINDLIB=libunwind -DCLANG_DEFAULT_RTLIB=compiler-rt -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DLIBUNWIND_USE_COMPILER_RT=Yes -DLIBCXX_USE_COMPILER_RT=YES -DLIBCXXABI_USE_COMPILER_RT=YES -DLIBCXXABI_USE_LLVM_UNWINDER=YES -DLLVM_ENABLE_LIBCXX=ON -DCOMPILER_RT_CXX_LIBRARY=libcxx -DBUILTINS_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DRUNTIMES_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DLIBCXX_HAS_ATOMIC_LIB=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
-
-      # - name: Build stage 2 with Ninja
-      #   run: ninja -C build-stage2 install
+          gh release create "${TAG}" x86_64-linux-llvm-toolchain.tar.gz
