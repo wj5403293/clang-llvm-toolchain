@@ -44,11 +44,12 @@ jobs:
         run: ninja -C build-stage1 install
 
       - name: Check stage 1 linkage
-        run: ldd stage1/bin/clang
-        run: ldd stage1/bin/ld.lld
-        run: unset LD_LIBRARY_PATH
-        run: ldd stage1/bin/clang
-        run: ldd stage1/bin/ld.ldd
+        run: |
+          ldd stage1/bin/clang
+          ldd stage1/bin/ld.lld
+          unset LD_LIBRARY_PATH
+          ldd stage1/bin/clang
+          ldd stage1/bin/ld.ldd
 
       # - name: Configure stage 2 with CMake
       #   run: cmake -S llvm-project/llvm -B build-stage2 -G Ninja -DCMAKE_INSTALL_PREFIX=x86_64-linux-llvm-toolchain -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$(pwd)/stage1/bin/clang" -DCMAKE_CXX_COMPILER="$(pwd)/stage1/bin/clang++" -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;libunwind;libcxx;libcxxabi" -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DCLANG_DEFAULT_UNWINDLIB=libunwind -DCLANG_DEFAULT_RTLIB=compiler-rt -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DLIBUNWIND_USE_COMPILER_RT=Yes -DLIBCXX_USE_COMPILER_RT=YES -DLIBCXXABI_USE_COMPILER_RT=YES -DLIBCXXABI_USE_LLVM_UNWINDER=YES -DLLVM_ENABLE_LIBCXX=ON -DCOMPILER_RT_CXX_LIBRARY=libcxx -DBUILTINS_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DRUNTIMES_CMAKE_ARGS="-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF" -DLIBCXX_HAS_ATOMIC_LIB=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON
