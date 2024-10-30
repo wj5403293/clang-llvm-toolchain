@@ -1,17 +1,19 @@
 # clang-llvm-toolchain-x86_64-linux
-Github Actions to build standalone llvm toolchain containing [clang/clang++](https://clang.llvm.org/), [lld](https://lld.llvm.org/), [compiler-rt](https://compiler-rt.llvm.org/), [libunwind](https://bcain-llvm.readthedocs.io/projects/libunwind/en/latest/), [libc++](https://libcxx.llvm.org/), and [libc++abi](https://libcxxabi.llvm.org/) for x86-64 Linux architechture which does not depend on GNU tooling
+Github Actions 用于为 x86-64 Linux 架构构建独立的 llvm 工具链，包含clang/clang++、lld、compiler-rt、libunwind、libc++和libc++abi，不依赖于 GNU 工具
 
 <br>
+##过程
+构建完整工具链的流程如下：
 
-## Process
-The process to build a complete toolchain is as follows:
-1. Environment setup
-    - Install tools needed for building LLVM project components ([GNU compiler collection](https://gcc.gnu.org/), [CMake](https://cmake.org/), [ninja](https://ninja-build.org/), [python](https://www.python.org/))
-    - Download and extract complete LLVM project from [GitHub releases](https://github.com/llvm/llvm-project/releases)
-    - Patch compiler-rt to support float128 builtins on x86_64 platforms (see [this issue](https://reviews.llvm.org/D53608) for more details)<br><br>
-2. Configure and build stage 1 toolchain with GNU compiler collection (gcc/g++)
-    - Building is done in 2 stages to produce the final result. Stage 1 (which depends on GNU) is meant to provide a working clang+llvm toolchain that will then be used to build stage 2 (which will NOT depend on GNU)
-    - compiler-rt, libunwind, libc++, and libc++abi of stage 1 are all built via `LLVM_ENABLE_RUNTIMES` instead of `LLVM_ENABLE_PROJECTS` to have them be built with the just-built stage 1 clang instead of gcc/g++. This is because of additional configuration options (e.g. `LIBUNWIND_USE_COMPILER_RT`) which will add flags such as `-rtlib=compiler-rt` to the compiler invocation when building the runtime components. Only clang knows about such flags and gcc/g++ do not, which would cause the build to fail if they were built with gcc/g++<br><br>
-3. Configure and build stage 2 (final) toolchain with stage 1 toolchain
-    - The stage 1 toolchain is utilized via the `CMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER` options. The clang/clang++ of stage 1 are already configured to utilize all llvm tools (and no GNU tools) via `CLANG_DEFAULT_UNWINDLIB=libunwind`, `CLANG_DEFAULT_RTLIB=compiler-rt`, `CLANG_DEFAULT_CXX_STDLIB=libc++`, and `CLANG_DEFAULT_LINKER=lld` options. This will cause stage 2 to be built without dependence on GNU
-    - compiler-rt, libunwind, libc++, and libc++abi of stage 2 are all built via `LLVM_ENABLE_PROJECTS` instead of `LLVM_ENABLE_RUNTIMES` so that all necessary components are built and included (e.g. `crtbeginS.o` of compiler-rt)
+1.环境设置
+安装构建 LLVM 项目组件所需的工具（GNU 编译器集合、CMake、ninja、python）
+从GitHub 版本下载并提取完整的 LLVM 项目
+修补编译器 rt 以支持 x86_64 平台上的 float128 内置函数（有关更多详细信息，请参阅此问题）
+
+2.使用 GNU 编译器集合 (gcc/g++) 配置和构建第一阶段工具链
+构建分为两个阶段，以产生最终结果。第 1 阶段（依赖于 GNU）旨在提供一个可用的 clang+llvm 工具链，然后用于构建第 2 阶段（不依赖于 GNU）
+第一阶段的编译器-rt、libunwind、libc++ 和 libc++abi 都是通过LLVM_ENABLE_RUNTIMES而不是LLVM_ENABLE_PROJECTS使用刚构建的第一阶段 clang 而不是 gcc/g++ 构建的。这是因为额外的配置选项（例如LIBUNWIND_USE_COMPILER_RT）将-rtlib=compiler-rt在构建运行时组件时向编译器调用添加诸如这样的标志。只有 clang 知道这些标志，而 gcc/g++ 不知道，如果使用 gcc/g++ 构建，这将导致构建失败
+
+3.使用第一阶段工具链配置并构建第二阶段（最终）工具链
+CMAKE_C_COMPILER第 1 阶段工具链通过和选项使用CMAKE_CXX_COMPILER。第 1 阶段的 clang/clang++ 已配置为通过、、和选项使用所有 llvm 工具（无 GNU 工具）CLANG_DEFAULT_UNWINDLIB=libunwind。CLANG_DEFAULT_RTLIB=compiler-rt这CLANG_DEFAULT_CXX_STDLIB=libc++将CLANG_DEFAULT_LINKER=lld导致第 2 阶段的构建不依赖于 GNU
+第二阶段的编译器-rt、libunwind、libc++ 和 libc++abi 都是通过LLVM_ENABLE_PROJECTS而不是构建的，LLVM_ENABLE_RUNTIMES以便构建和包含所有必要的组件（例如crtbeginS.o编译器-rt）
