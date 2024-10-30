@@ -9,7 +9,7 @@ on:
         type: string
 
 jobs:
-  编译-clang-llvm-工具链:
+  编build-clang-llvm-toolchain:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
