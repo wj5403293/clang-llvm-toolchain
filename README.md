@@ -2,7 +2,8 @@
 Github Actions 用于为 x86-64 Linux 架构构建独立的 llvm 工具链，包含clang/clang++、lld、compiler-rt、libunwind、libc++和libc++abi，不依赖于 GNU 工具
 
 <br>
-##过程
+
+## 过程
 构建完整工具链的流程如下：
 
 1.环境设置
